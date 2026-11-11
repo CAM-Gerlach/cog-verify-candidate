@@ -1,16 +1,18 @@
 # Isolated verification
 
 Docker is an explicit host prerequisite: use Docker Engine 29.9.2 or newer, or
-Docker Desktop 4.96.2 or newer. Earlier versions still trust the compromised
-eMudhra intermediate CAs when pulling images. No provider, credentials, sibling
-workspace, host home directory, Docker socket, or network is mounted into the
-execution container. This policy is for pure Python Cogs using stdlib, PyYAML
-and jsonschema. Other task executables and dependency sets are refused.
+Docker Desktop 4.96.2 or newer. Earlier versions may still accept the
+compromised eMudhra intermediate CAs when pulling images, depending on the
+host's certificate store. No provider, credentials, sibling workspace, host home
+directory, Docker socket, or network is mounted into the execution container.
+This policy is for pure Python Cogs using stdlib, PyYAML and jsonschema. Other
+task executables and dependency sets are refused.
 
-Build a local image from an immutable public base running Python 3.11.18 or
-newer, and older than 3.14 (the pinned PyYAML has no wheels for 3.14). Earlier
-bases cannot reject the compromised eMudhra intermediate CAs; the
-`PYTHON_VERSION` printed below shows which release a base has:
+Build a local image from an immutable public base running Python 3.11 through
+3.14, at or above that line's first release that rejects the compromised
+eMudhra intermediate CAs: 3.11.18, 3.12.16, 3.13.18 or 3.14.10. Official
+`python` images report their release as `PYTHON_VERSION` in the environment
+printed below; for other bases, run `python --version` in the image:
 
 ```sh
 docker pull python:3.11-slim
@@ -27,13 +29,16 @@ pinned hash. A substituted package fails the build, whatever certificates the
 base image trusts. Only wheels are installed, since building a source
 distribution would fetch its build dependencies without hash checks. To change a
 version, edit [`requirements.in`](requirements.in) and regenerate the lock with
-the `uv` command in the header of `requirements.txt`, keeping `--universal` so
-it covers every platform and Python version.
+the `uv` command in the header of `requirements.txt`, using uv 0.13.5 or newer
+and keeping `--universal` so it covers every platform and Python version. The
+hashes come from PyPI over TLS, so an older uv could record hashes of
+substituted packages, which every later build would then accept. CI regenerates
+the lock and fails if it differs from the committed file.
 
-Rebuild any image built before this hash pinning from a base older than Python
-3.11.18 (check with the `PYTHON_VERSION` command above, using your image ID).
-Its packages were downloaded over a connection that could have been intercepted
-with the compromised eMudhra keys.
+Rebuild any image built before this hash pinning from a base older than the
+releases listed above (check with the `PYTHON_VERSION` command above, using your
+image ID). Its packages were downloaded over a connection that could have been
+intercepted using the compromised eMudhra intermediate keys.
 
 Supply the resulting `sha256:...` image ID as `execution_policy.image`:
 

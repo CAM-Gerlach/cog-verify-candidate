@@ -1,19 +1,39 @@
 # Isolated verification
 
-Docker is an explicit host prerequisite. No provider, credentials, sibling
+Docker is an explicit host prerequisite: use Docker Engine 29.9.2 or newer, or
+Docker Desktop 4.96.2 or newer. Earlier versions still trust the compromised
+eMudhra intermediate CAs when pulling images. No provider, credentials, sibling
 workspace, host home directory, Docker socket, or network is mounted into the
 execution container. This policy is for pure Python Cogs using stdlib, PyYAML
 and jsonschema. Other task executables and dependency sets are refused.
 
-Build a local image from an immutable public base:
+Build a local image from an immutable public base running Python 3.11.18 or
+newer, and older than 3.14 (the pinned PyYAML has no wheels for 3.14). Earlier
+bases cannot reject the compromised eMudhra intermediate CAs; the
+`PYTHON_VERSION` printed below shows which release a base has:
 
 ```sh
 docker pull python:3.11-slim
 # Copy its RepoDigest from this command; no secret output is needed.
 docker image inspect python:3.11-slim --format '{{index .RepoDigests 0}}'
+docker image inspect python:3.11-slim --format '{{json .Config.Env}}'
 docker build --build-arg BASE_IMAGE=python@sha256:BASE_DIGEST -t cog-verification -f isolation/Dockerfile .
 docker image inspect cog-verification --format '{{.Id}}'
 ```
+
+The image installs PyYAML, jsonschema and their dependencies from
+[`requirements.txt`](requirements.txt), with every download checked against its
+pinned hash. A substituted package fails the build, whatever certificates the
+base image trusts. Only wheels are installed, since building a source
+distribution would fetch its build dependencies without hash checks. To change a
+version, edit [`requirements.in`](requirements.in) and regenerate the lock with
+the `uv` command in the header of `requirements.txt`, keeping `--universal` so
+it covers every platform and Python version.
+
+Rebuild any image built before this hash pinning from a base older than Python
+3.11.18 (check with the `PYTHON_VERSION` command above, using your image ID).
+Its packages were downloaded over a connection that could have been intercepted
+with the compromised eMudhra keys.
 
 Supply the resulting `sha256:...` image ID as `execution_policy.image`:
 

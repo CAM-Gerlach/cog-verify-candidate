@@ -49,9 +49,10 @@ jobs:
         with:
           version: "0.13.7"
       - name: Check the isolation lock matches requirements.in and PyPI hashes
-        # uv keeps the committed pins as preferences, so this fails only when
-        # requirements.in changed, the lock was edited, or PyPI's hashes differ
-        # (including new files uploaded for a pinned version).
-        run: |
-          uv pip compile isolation/requirements.in --universal --python-version 3.11 --generate-hashes --quiet -o isolation/requirements.txt
-          git diff --exit-code isolation/requirements.txt
+        # Recompiles the committed versions into a fresh file, so every hash
+        # comes from PyPI rather than the lock (see isolation/check_lock.py).
+        # Fails on any changed, added or removed hash, a version that no
+        # longer satisfies requirements.in, or a stale lock; also when PyPI
+        # adds files to a pinned version. --self-test confirms a substituted
+        # hash is rejected.
+        run: python3 isolation/check_lock.py --self-test

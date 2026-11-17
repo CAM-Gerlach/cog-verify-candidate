@@ -32,8 +32,12 @@ version, edit [`requirements.in`](requirements.in) and regenerate the lock with
 the `uv` command in the header of `requirements.txt`, using uv 0.13.5 or newer
 and keeping `--universal` so it covers every platform and Python version. The
 hashes come from PyPI over TLS, so an older uv could record hashes of
-substituted packages, which every later build would then accept. CI regenerates
-the lock and fails if it differs from the committed file.
+substituted packages, which every later build would then accept.
+[`check_lock.py`](check_lock.py), run in CI, recompiles the committed versions
+into a fresh file so that every hash comes from PyPI rather than the lock, and
+fails on any difference: a changed, added or removed hash, a version that no
+longer satisfies `requirements.in`, or a lock not regenerated after editing it.
+Run it locally with `python3 isolation/check_lock.py` from the repository root.
 
 Rebuild any image built before this hash pinning from a base older than the
 releases listed above (check with the `PYTHON_VERSION` command above, using your

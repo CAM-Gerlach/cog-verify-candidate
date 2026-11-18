@@ -6,9 +6,14 @@ the existing output file and keeps its hashes, so a corrupted or substituted
 hash survives the recompile. This check instead keeps only the committed
 versions, as constraints, and compiles into a fresh file, so every hash comes
 from the package index. It fails if the result differs from the committed lock,
-which catches a changed, added or removed hash, a version that no longer
-satisfies requirements.in, and a requirements.in edit without a regenerated
-lock.
+which catches hashes that don't match PyPI's for the pinned versions (changed,
+added or removed), a pin that no longer satisfies requirements.in, and a
+package added to or removed from requirements.in without regenerating the lock.
+
+It does not check which versions are pinned: a lock moved to another real
+release that still satisfies requirements.in, such as an older transitive
+dependency, passes with that release's genuine hashes. Review version changes
+in the lock's diff.
 
 Run from the repository root, with uv 0.13.5 or newer on PATH:
 
@@ -76,25 +81,30 @@ def recompile(committed, input_path):
             "\n".join(constraints) + "\n", encoding="utf-8"
         )
         fresh_path = tmp / "requirements.txt"  # new file: no hashes to reuse
-        result = subprocess.run(
-            [
-                "uv",
-                "pip",
-                "compile",
-                str(input_path),
-                *COMPILE_ARGS,
-                "--no-header",
-                "--no-annotate",
-                "--quiet",
-                "--refresh",
-                "--constraint",
-                str(tmp / "constraints.txt"),
-                "--output-file",
-                str(fresh_path),
-            ],
-            capture_output=True,
-            text=True,
-        )
+        try:
+            result = subprocess.run(
+                [
+                    "uv",
+                    "pip",
+                    "compile",
+                    str(input_path),
+                    *COMPILE_ARGS,
+                    "--no-header",
+                    "--no-annotate",
+                    "--quiet",
+                    "--refresh",
+                    "--constraint",
+                    str(tmp / "constraints.txt"),
+                    "--output-file",
+                    str(fresh_path),
+                ],
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError:
+            raise LockError(
+                "uv was not found on PATH; install uv 0.13.5 or newer"
+            ) from None
         if result.returncode:
             raise LockError(
                 "could not recompile the committed versions; check "

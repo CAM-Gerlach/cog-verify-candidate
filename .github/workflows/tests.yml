@@ -51,8 +51,10 @@ jobs:
       - name: Check the isolation lock matches requirements.in and PyPI hashes
         # Recompiles the committed versions into a fresh file, so every hash
         # comes from PyPI rather than the lock (see isolation/check_lock.py).
-        # Fails on any changed, added or removed hash, a version that no
-        # longer satisfies requirements.in, or a stale lock; also when PyPI
-        # adds files to a pinned version. --self-test confirms a substituted
-        # hash is rejected.
+        # Fails on hashes that don't match PyPI's for the pinned versions, a
+        # pin that no longer satisfies requirements.in, or a package added to
+        # or removed from requirements.in without regenerating the lock; also
+        # when PyPI adds files to a pinned version. It doesn't check which
+        # versions are pinned, so review version changes in the lock's diff.
+        # --self-test confirms a substituted hash is rejected.
         run: python3 isolation/check_lock.py --self-test

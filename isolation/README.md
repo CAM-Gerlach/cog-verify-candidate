@@ -35,9 +35,12 @@ hashes come from PyPI over TLS, so an older uv could record hashes of
 substituted packages, which every later build would then accept.
 [`check_lock.py`](check_lock.py), run in CI, recompiles the committed versions
 into a fresh file so that every hash comes from PyPI rather than the lock, and
-fails on any difference: a changed, added or removed hash, a version that no
-longer satisfies `requirements.in`, or a lock not regenerated after editing it.
-Run it locally with `python3 isolation/check_lock.py` from the repository root.
+fails on any difference: a hash that doesn't match PyPI's for the pinned
+version, a pin that no longer satisfies `requirements.in`, or a package added to
+or removed from `requirements.in` without regenerating the lock. It doesn't
+check which versions are pinned: a lock moved to another real release that still
+satisfies `requirements.in`, such as an older transitive dependency, passes, so
+review version changes in the lock's diff. Run it locally with `python3 isolation/check_lock.py` from the repository root.
 
 Rebuild any image built before this hash pinning from a base older than the
 releases listed above (check with the `PYTHON_VERSION` command above, using your
